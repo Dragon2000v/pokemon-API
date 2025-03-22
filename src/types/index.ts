@@ -1,6 +1,12 @@
 import { Request } from "express";
 import { Types } from "mongoose";
 
+export interface IMove {
+  name: string;
+  power: number;
+  type: string;
+}
+
 export interface IPokemon {
   _id: Types.ObjectId;
   name: string;
@@ -10,6 +16,7 @@ export interface IPokemon {
   defense: number;
   speed: number;
   imageUrl: string;
+  moves: IMove[];
 }
 
 export interface IUser {

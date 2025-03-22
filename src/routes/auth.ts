@@ -37,6 +37,8 @@ const router = Router();
 router.post("/nonce", async (req, res) => {
   try {
     const { walletAddress } = req.body;
+    console.log("Nonce request for wallet:", walletAddress);
+
     if (!walletAddress) {
       return res.status(400).json({ message: "Wallet address is required" });
     }
@@ -48,8 +50,10 @@ router.post("/nonce", async (req, res) => {
       { upsert: true }
     );
 
+    console.log("Generated nonce:", nonce);
     res.json({ nonce });
-  } catch {
+  } catch (error) {
+    console.error("Error generating nonce:", error);
     res.status(500).json({ message: "Error generating nonce" });
   }
 });
@@ -89,6 +93,8 @@ router.post("/nonce", async (req, res) => {
 router.post("/verify", async (req, res) => {
   try {
     const { walletAddress, signature } = req.body;
+    console.log("Verify request:", { walletAddress, signature });
+
     if (!walletAddress || !signature) {
       return res
         .status(400)
@@ -96,14 +102,21 @@ router.post("/verify", async (req, res) => {
     }
 
     const user = await User.findOne({ walletAddress });
+    console.log("Found user:", user);
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     const message = `Authenticate for Pokemon Game with nonce: ${user.nonce}`;
+    console.log("Message to verify:", message);
+
     const recoveredAddress = ethers.verifyMessage(message, signature);
+    console.log("Recovered address:", recoveredAddress);
+    console.log("Original address:", walletAddress);
 
     if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+      console.log("Signature verification failed");
       return res.status(401).json({ message: "Invalid signature" });
     }
 
@@ -111,8 +124,10 @@ router.post("/verify", async (req, res) => {
       expiresIn: config.jwt.expiresIn,
     });
 
+    console.log("Authentication successful");
     res.json({ token });
-  } catch {
+  } catch (error) {
+    console.error("Error verifying signature:", error);
     res.status(500).json({ message: "Error verifying signature" });
   }
 });
