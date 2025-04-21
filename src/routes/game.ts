@@ -4,6 +4,7 @@ import { Game } from "../models/Game.js";
 import { Pokemon } from "../models/Pokemon.js";
 import { auth } from "../middlewares/auth.js";
 import { AuthRequest } from "../types/index.js";
+import { startGame, attack, getGame, surrender } from "../controllers/game.js";
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.post(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { pokemonId } = req.body;
-      const playerPokemon = await Pokemon.findById(pokemonId);
+      const playerPokemon = await Pokemon.findById(pokemonId).lean();
 
       if (!playerPokemon) {
         res.status(404).json({ message: "Pokemon not found" });
@@ -46,29 +47,47 @@ router.post(
       }
 
       // Find a random opponent pokemon
-      const opponentPokemon = await Pokemon.aggregate([
-        { $sample: { size: 1 } },
-      ]);
+      const allPokemons = await Pokemon.find({
+        _id: { $ne: pokemonId },
+      }).lean();
+
+      if (!allPokemons.length) {
+        res.status(404).json({ message: "No opponent pokemons found" });
+        return;
+      }
+
+      const computerPokemon =
+        allPokemons[Math.floor(Math.random() * allPokemons.length)];
+
+      if (!playerPokemon.stats || !computerPokemon.stats) {
+        res
+          .status(500)
+          .json({ message: "Invalid pokemon data: missing stats" });
+        return;
+      }
+
+      // Determine who goes first based on speed
+      const playerFirst =
+        playerPokemon.stats.speed >= computerPokemon.stats.speed;
 
       const game = await Game.create({
-        player1: {
-          address: req.user?.walletAddress,
-          pokemon: playerPokemon._id,
-          currentHp: playerPokemon.hp,
-        },
-        player2: {
-          address: "CPU",
-          pokemon: opponentPokemon[0]._id,
-          currentHp: opponentPokemon[0].hp,
-        },
-        currentTurn: req.user?.walletAddress,
+        player: req.user!._id,
+        playerPokemon: playerPokemon._id,
+        computerPokemon: computerPokemon._id,
+        currentTurn: playerFirst ? "player" : "computer",
+        playerPokemonCurrentHP: playerPokemon.stats.hp,
+        computerPokemonCurrentHP: computerPokemon.stats.hp,
+        battleLog: [],
         status: "active",
       });
 
-      await game.populate("player1.pokemon player2.pokemon");
+      await game.populate(["playerPokemon", "computerPokemon"]);
       res.json(game);
-    } catch {
-      res.status(500).json({ message: "Error creating game" });
+    } catch (error) {
+      console.error("Error creating game:", error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "Error creating game",
+      });
     }
   }
 );
@@ -100,22 +119,23 @@ router.get(
   auth,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const game = await Game.findById(req.params.id).populate(
-        "player1.pokemon player2.pokemon"
-      );
+      const game = await Game.findById(req.params.id)
+        .populate("playerPokemon")
+        .populate("computerPokemon");
 
       if (!game) {
         res.status(404).json({ message: "Game not found" });
         return;
       }
 
-      if (game.player1.address !== req.user?.walletAddress) {
+      if (game.player.toString() !== req.user!._id.toString()) {
         res.status(403).json({ message: "Not authorized to view this game" });
         return;
       }
 
       res.json(game);
-    } catch {
+    } catch (error) {
+      console.error("Error fetching game:", error);
       res.status(500).json({ message: "Error fetching game" });
     }
   }
@@ -148,16 +168,16 @@ router.post(
   auth,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const game = await Game.findById(req.params.id).populate(
-        "player1.pokemon player2.pokemon"
-      );
+      const game = await Game.findById(req.params.id)
+        .populate("playerPokemon")
+        .populate("computerPokemon");
 
       if (!game) {
         res.status(404).json({ message: "Game not found" });
         return;
       }
 
-      if (game.player1.address !== req.user?.walletAddress) {
+      if (game.player.toString() !== req.user!._id.toString()) {
         res
           .status(403)
           .json({ message: "Not authorized to perform this action" });
@@ -169,46 +189,85 @@ router.post(
         return;
       }
 
-      if (game.currentTurn !== req.user?.walletAddress) {
+      if (game.currentTurn !== "player") {
         res.status(400).json({ message: "Not your turn" });
         return;
       }
 
-      // Calculate damage
-      const player1Pokemon = game.player1.pokemon as any;
-      const player2Pokemon = game.player2.pokemon as any;
+      // Player attack
+      const playerMove = req.body.moveName
+        ? game.playerPokemon.moves.find((m) => m.name === req.body.moveName)
+        : game.playerPokemon.moves[0];
+
+      if (!playerMove) {
+        return res.status(400).json({ message: "Invalid move" });
+      }
 
       const damage = Math.max(
         1,
-        player1Pokemon.attack - player2Pokemon.defense
+        game.playerPokemon.stats.attack - game.computerPokemon.stats.defense
       );
-      game.player2.currentHp -= damage;
+      game.computerPokemonCurrentHP = Math.max(
+        0,
+        game.computerPokemonCurrentHP - damage
+      );
 
-      // Check if game is finished
-      if (game.player2.currentHp <= 0) {
+      // Add to battle log
+      game.battleLog.push({
+        turn: game.battleLog.length + 1,
+        attacker: "player",
+        move: playerMove.name,
+        damage,
+        timestamp: new Date(),
+      });
+
+      // Check if game is finished after player's attack
+      if (game.computerPokemonCurrentHP <= 0) {
+        game.computerPokemonCurrentHP = 0;
         game.status = "finished";
-        game.winner = game.player1.address;
-      } else {
-        // CPU turn
-        const cpuDamage = Math.max(
-          1,
-          player2Pokemon.attack - player1Pokemon.defense
-        );
-        game.player1.currentHp -= cpuDamage;
-
-        if (game.player1.currentHp <= 0) {
-          game.status = "finished";
-          game.winner = game.player2.address;
-        }
+        game.winner = "player";
+        await game.save();
+        return res.json(game);
       }
 
-      // Update turn
-      game.currentTurn =
-        game.status === "active" ? game.player1.address : undefined;
+      // Computer attack
+      game.currentTurn = "computer";
+      const computerMove =
+        game.computerPokemon.moves[
+          Math.floor(Math.random() * game.computerPokemon.moves.length)
+        ];
+
+      const computerDamage = Math.max(
+        1,
+        game.computerPokemon.stats.attack - game.playerPokemon.stats.defense
+      );
+
+      game.playerPokemonCurrentHP = Math.max(
+        0,
+        game.playerPokemonCurrentHP - computerDamage
+      );
+
+      // Add computer attack to battle log
+      game.battleLog.push({
+        turn: game.battleLog.length + 1,
+        attacker: "computer",
+        move: computerMove.name,
+        damage: computerDamage,
+        timestamp: new Date(),
+      });
+
+      if (game.playerPokemonCurrentHP <= 0) {
+        game.playerPokemonCurrentHP = 0;
+        game.status = "finished";
+        game.winner = "computer";
+      } else {
+        game.currentTurn = "player";
+      }
 
       await game.save();
       res.json(game);
-    } catch {
+    } catch (error) {
+      console.error("Error processing attack:", error);
       res.status(500).json({ message: "Error processing attack" });
     }
   }
@@ -248,5 +307,29 @@ router.get(
     }
   }
 );
+
+/**
+ * @swagger
+ * /api/game/{id}/surrender:
+ *   post:
+ *     summary: Surrender the game
+ *     tags: [Game]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Game ended
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Game'
+ */
+router.post("/:id/surrender", auth, surrender);
 
 export default router;

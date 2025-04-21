@@ -2,6 +2,7 @@ import { Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/index.js";
 import { AuthRequest } from "../types/index.js";
+import { User } from "../models/User.js";
 
 export const auth = async (
   req: AuthRequest,
@@ -18,7 +19,16 @@ export const auth = async (
     const decoded = jwt.verify(token, config.jwt.secret) as {
       walletAddress: string;
     };
-    req.user = { walletAddress: decoded.walletAddress };
+
+    const user = await User.findOne({ walletAddress: decoded.walletAddress });
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    req.user = {
+      _id: user._id,
+      walletAddress: decoded.walletAddress,
+    };
 
     next();
   } catch {

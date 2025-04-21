@@ -2,7 +2,7 @@ import { Router } from "express";
 import { User } from "../models/User.js";
 import jwt from "jsonwebtoken";
 import { config } from "../config/index.js";
-import { ethers } from "ethers";
+import { utils } from "ethers";
 
 const router = Router();
 
@@ -111,7 +111,10 @@ router.post("/verify", async (req, res) => {
     const message = `Authenticate for Pokemon Game with nonce: ${user.nonce}`;
     console.log("Message to verify:", message);
 
-    const recoveredAddress = ethers.verifyMessage(message, signature);
+    const msgHash = utils.hashMessage(message);
+    const msgHashBytes = utils.arrayify(msgHash);
+    const recoveredAddress = utils.recoverAddress(msgHashBytes, signature);
+
     console.log("Recovered address:", recoveredAddress);
     console.log("Original address:", walletAddress);
 

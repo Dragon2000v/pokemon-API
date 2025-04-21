@@ -1,20 +1,41 @@
 import { Schema, model } from "mongoose";
-import { IGame } from "../types/index.js";
+import { IGame, IBattleLogEntry } from "../types";
 
-const gameSchema = new Schema<IGame>({
-  player1: {
-    address: { type: String, required: true },
-    pokemon: { type: Schema.Types.ObjectId, ref: "Pokemon", required: true },
-    currentHp: { type: Number, required: true },
-  },
-  player2: {
-    address: { type: String, required: true },
-    pokemon: { type: Schema.Types.ObjectId, ref: "Pokemon", required: true },
-    currentHp: { type: Number, required: true },
-  },
-  currentTurn: { type: String, required: true },
-  status: { type: String, enum: ["active", "finished"], default: "active" },
-  winner: { type: String },
+const battleLogSchema = new Schema<IBattleLogEntry>({
+  turn: { type: Number, required: true },
+  attacker: { type: String, enum: ["player", "computer"], required: true },
+  move: { type: String, required: true },
+  damage: { type: Number, required: true },
+  timestamp: { type: Date, default: Date.now },
 });
+
+const gameSchema = new Schema<IGame>(
+  {
+    player: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    playerPokemon: {
+      type: Schema.Types.ObjectId,
+      ref: "Pokemon",
+      required: true,
+    },
+    computerPokemon: {
+      type: Schema.Types.ObjectId,
+      ref: "Pokemon",
+      required: true,
+    },
+    status: { type: String, enum: ["active", "finished"], default: "active" },
+    winner: { type: String, enum: ["player", "computer"] },
+    currentTurn: {
+      type: String,
+      enum: ["player", "computer"],
+      default: "player",
+    },
+    battleLog: [battleLogSchema],
+    playerPokemonCurrentHP: { type: Number, required: true },
+    computerPokemonCurrentHP: { type: Number, required: true },
+  },
+  {
+    timestamps: true,
+  }
+);
 
 export const Game = model<IGame>("Game", gameSchema);

@@ -1,32 +1,14 @@
 import { Response } from "express";
-import Game from "../schemas/game.js";
-import Pokemon from "../schemas/pokemon.js";
 import { AuthRequest, IPokemon } from "../types/index.js";
+import { Game } from "../models/Game.js";
+import { Pokemon } from "../models/Pokemon.js";
+import { calculateMoveDamage, getAIAction } from "../helpers/ai.js";
 
 interface StartGameRequest extends AuthRequest {
   body: {
     pokemonId: string;
   };
 }
-
-const calculateDamage = (attacker: IPokemon, defender: IPokemon): number => {
-  const level = attacker.level;
-  const power = 50; // Base power for basic attack
-  const attack = attacker.stats.attack;
-  const defense = defender.stats.defense;
-  const randomFactor = Math.random();
-
-  if (randomFactor === 0) {
-    return 0; // Miss
-  }
-
-  const damage = Math.floor(
-    ((((2 * level) / 5 + 2) * power * (attack / defense)) / 50 + 2) *
-      randomFactor
-  );
-
-  return damage;
-};
 
 export const startGame = async (req: StartGameRequest, res: Response) => {
   try {
@@ -53,15 +35,26 @@ export const startGame = async (req: StartGameRequest, res: Response) => {
       currentTurn: playerFirst ? "player" : "computer",
       playerPokemonCurrentHP: playerPokemon.stats.hp,
       computerPokemonCurrentHP: computerPokemon.stats.hp,
+      battleLog: [],
     });
 
     // If computer goes first, perform its attack
     if (!playerFirst) {
-      const damage = calculateDamage(computerPokemon, playerPokemon);
+      const aiMove = getAIAction(
+        game,
+        playerPokemon as IPokemon,
+        computerPokemon as IPokemon
+      );
+      const damage = calculateMoveDamage(
+        aiMove,
+        computerPokemon as IPokemon,
+        playerPokemon as IPokemon
+      );
       game.playerPokemonCurrentHP -= damage;
       game.battleLog.push({
         turn: 1,
         attacker: "computer",
+        move: aiMove.name,
         damage,
         timestamp: new Date(),
       });
@@ -77,13 +70,17 @@ export const startGame = async (req: StartGameRequest, res: Response) => {
       await game.save();
     }
 
-    res.json({ gameId: game._id });
+    const populatedGame = await game.populate([
+      { path: "playerPokemon" },
+      { path: "computerPokemon" },
+    ]);
+
+    res.json(populatedGame);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: error instanceof Error ? error.message : "Server error",
-      });
+    console.error("Error creating game:", error);
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };
 
@@ -105,11 +102,9 @@ export const getGameState = async (req: AuthRequest, res: Response) => {
 
     res.json(game);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: error instanceof Error ? error.message : "Server error",
-      });
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };
 
@@ -118,7 +113,7 @@ export const attack = async (req: AuthRequest, res: Response) => {
     const game = await Game.findById(req.params.gameId).populate<{
       playerPokemon: IPokemon;
       computerPokemon: IPokemon;
-    }>("playerPokemon computerPokemon");
+    }>(["playerPokemon", "computerPokemon"]);
 
     if (!game) {
       return res.status(404).json({ message: "Game not found" });
@@ -139,14 +134,27 @@ export const attack = async (req: AuthRequest, res: Response) => {
     }
 
     // Player attack
-    const playerDamage = calculateDamage(
-      game.playerPokemon,
-      game.computerPokemon
+    const playerMove = req.body.moveName
+      ? (game.playerPokemon as IPokemon).moves.find(
+          (m) => m.name === req.body.moveName
+        )
+      : (game.playerPokemon as IPokemon).moves[0];
+
+    if (!playerMove) {
+      return res.status(400).json({ message: "Invalid move" });
+    }
+
+    const playerDamage = calculateMoveDamage(
+      playerMove,
+      game.playerPokemon as IPokemon,
+      game.computerPokemon as IPokemon
     );
+
     game.computerPokemonCurrentHP -= playerDamage;
     game.battleLog.push({
       turn: game.battleLog.length + 1,
       attacker: "player",
+      move: playerMove.name,
       damage: playerDamage,
       timestamp: new Date(),
     });
@@ -161,14 +169,22 @@ export const attack = async (req: AuthRequest, res: Response) => {
 
     // Computer attack
     game.currentTurn = "computer";
-    const computerDamage = calculateDamage(
-      game.computerPokemon,
-      game.playerPokemon
+    const aiMove = getAIAction(
+      game,
+      game.playerPokemon as IPokemon,
+      game.computerPokemon as IPokemon
     );
+    const computerDamage = calculateMoveDamage(
+      aiMove,
+      game.computerPokemon as IPokemon,
+      game.playerPokemon as IPokemon
+    );
+
     game.playerPokemonCurrentHP -= computerDamage;
     game.battleLog.push({
       turn: game.battleLog.length + 1,
       attacker: "computer",
+      move: aiMove.name,
       damage: computerDamage,
       timestamp: new Date(),
     });
@@ -184,10 +200,55 @@ export const attack = async (req: AuthRequest, res: Response) => {
     await game.save();
     res.json(game);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: error instanceof Error ? error.message : "Server error",
-      });
+    console.error("Error processing attack:", error);
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
+  }
+};
+
+export const surrender = async (req: AuthRequest, res: Response) => {
+  try {
+    const game = await Game.findById(req.params.gameId).populate<{
+      playerPokemon: IPokemon;
+      computerPokemon: IPokemon;
+    }>(["playerPokemon", "computerPokemon"]);
+
+    if (!game) {
+      return res.status(404).json({ message: "Game not found" });
+    }
+
+    if (game.player.toString() !== req.user!._id.toString()) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to perform this action" });
+    }
+
+    if (game.status === "finished") {
+      return res.status(400).json({ message: "Game is already finished" });
+    }
+
+    // Update game state
+    game.status = "finished";
+    game.winner = "computer";
+    game.currentTurn = "computer";
+    game.playerPokemonCurrentHP = 0;
+
+    // Add surrender to battle log
+    game.battleLog.push({
+      turn: game.battleLog.length + 1,
+      attacker: "player",
+      damage: 0,
+      timestamp: new Date(),
+      move: "surrender",
+    });
+
+    await game.save();
+    res.json(game);
+  } catch (error) {
+    console.error("Error processing surrender:", error);
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };
