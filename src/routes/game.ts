@@ -1,10 +1,9 @@
 import { Router } from "express";
-import { Request, Response } from "express";
+import { Response } from "express";
 import { Game } from "../models/Game.js";
-import { Pokemon } from "../models/Pokemon.js";
 import { auth } from "../middlewares/auth.js";
 import { AuthRequest } from "../types/index.js";
-import { startGame, attack, getGame, surrender } from "../controllers/game.js";
+import { startGame, attack, surrender } from "../controllers/game.js";
 
 const router = Router();
 
@@ -33,64 +32,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Game'
  */
-router.post(
-  "/create",
-  auth,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const { pokemonId } = req.body;
-      const playerPokemon = await Pokemon.findById(pokemonId).lean();
-
-      if (!playerPokemon) {
-        res.status(404).json({ message: "Pokemon not found" });
-        return;
-      }
-
-      // Find a random opponent pokemon
-      const allPokemons = await Pokemon.find({
-        _id: { $ne: pokemonId },
-      }).lean();
-
-      if (!allPokemons.length) {
-        res.status(404).json({ message: "No opponent pokemons found" });
-        return;
-      }
-
-      const computerPokemon =
-        allPokemons[Math.floor(Math.random() * allPokemons.length)];
-
-      if (!playerPokemon.stats || !computerPokemon.stats) {
-        res
-          .status(500)
-          .json({ message: "Invalid pokemon data: missing stats" });
-        return;
-      }
-
-      // Determine who goes first based on speed
-      const playerFirst =
-        playerPokemon.stats.speed >= computerPokemon.stats.speed;
-
-      const game = await Game.create({
-        player: req.user!._id,
-        playerPokemon: playerPokemon._id,
-        computerPokemon: computerPokemon._id,
-        currentTurn: playerFirst ? "player" : "computer",
-        playerPokemonCurrentHP: playerPokemon.stats.hp,
-        computerPokemonCurrentHP: computerPokemon.stats.hp,
-        battleLog: [],
-        status: "active",
-      });
-
-      await game.populate(["playerPokemon", "computerPokemon"]);
-      res.json(game);
-    } catch (error) {
-      console.error("Error creating game:", error);
-      res.status(500).json({
-        message: error instanceof Error ? error.message : "Error creating game",
-      });
-    }
-  }
-);
+router.post("/create", auth, startGame);
 
 /**
  * @swagger

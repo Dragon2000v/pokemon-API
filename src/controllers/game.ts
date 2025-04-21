@@ -13,22 +13,66 @@ interface StartGameRequest extends AuthRequest {
 export const startGame = async (req: StartGameRequest, res: Response) => {
   try {
     const { pokemonId } = req.body;
-    const playerPokemon = await Pokemon.findById(pokemonId);
 
+    // Get full player Pokemon data with moves and stats
+    const playerPokemon = await Pokemon.findById(pokemonId);
     if (!playerPokemon) {
       return res.status(404).json({ message: "Pokemon not found" });
     }
 
-    // Select random computer pokemon
+    // Get full computer Pokemon data
     const allPokemons = await Pokemon.find({ _id: { $ne: pokemonId } });
-    const computerPokemon =
-      allPokemons[Math.floor(Math.random() * allPokemons.length)];
+    if (!allPokemons.length) {
+      return res.status(404).json({ message: "No opponent pokemons found" });
+    }
+
+    // Get random computer Pokemon and fetch its full data
+    const randomPokemonId =
+      allPokemons[Math.floor(Math.random() * allPokemons.length)]._id;
+    const computerPokemon = await Pokemon.findById(randomPokemonId);
+
+    if (!computerPokemon) {
+      return res
+        .status(404)
+        .json({ message: "Failed to load computer Pokemon" });
+    }
+
+    // Validate Pokemon data and speeds
+    if (!playerPokemon.stats?.speed || !computerPokemon.stats?.speed) {
+      console.error("Invalid speed values:", {
+        playerSpeed: playerPokemon.stats?.speed,
+        computerSpeed: computerPokemon.stats?.speed,
+      });
+      return res.status(500).json({ message: "Invalid pokemon speed data" });
+    }
 
     // Determine who goes first based on speed
-    const playerFirst =
-      playerPokemon.stats.speed >= computerPokemon.stats.speed;
+    const playerSpeed = Number(playerPokemon.stats.speed);
+    const computerSpeed = Number(computerPokemon.stats.speed);
 
-    const game = await Game.create({
+    if (isNaN(playerSpeed) || isNaN(computerSpeed)) {
+      console.error("Speed values are not numbers:", {
+        playerSpeed,
+        computerSpeed,
+      });
+      return res.status(500).json({ message: "Invalid speed values" });
+    }
+
+    const playerFirst = playerSpeed >= computerSpeed;
+
+    console.log("Speed comparison details:", {
+      playerName: playerPokemon.name,
+      playerSpeed,
+      playerSpeedType: typeof playerSpeed,
+      computerName: computerPokemon.name,
+      computerSpeed,
+      computerSpeedType: typeof computerSpeed,
+      playerFirst,
+      comparison: `${playerSpeed} >= ${computerSpeed} = ${playerFirst}`,
+    });
+
+    // Create initial game state
+    let game = await Game.create({
       player: req.user!._id,
       playerPokemon: playerPokemon._id,
       computerPokemon: computerPokemon._id,
@@ -36,21 +80,64 @@ export const startGame = async (req: StartGameRequest, res: Response) => {
       playerPokemonCurrentHP: playerPokemon.stats.hp,
       computerPokemonCurrentHP: computerPokemon.stats.hp,
       battleLog: [],
+      status: "active",
     });
 
-    // If computer goes first, perform its attack
+    // Populate the game data immediately after creation
+    game = await game.populate(["playerPokemon", "computerPokemon"]);
+
+    console.log("Initial game state:", {
+      id: game._id,
+      currentTurn: game.currentTurn,
+      playerFirst,
+      playerHP: game.playerPokemonCurrentHP,
+      computerHP: game.computerPokemonCurrentHP,
+    });
+
+    // If computer goes first, perform its attack immediately
     if (!playerFirst) {
+      console.log("Computer goes first, preparing attack...");
+
+      // Validate populated data
+      if (!game.computerPokemon || !game.playerPokemon) {
+        console.error("Missing Pokemon data after populate:", {
+          computerPokemon: game.computerPokemon,
+          playerPokemon: game.playerPokemon,
+        });
+        return res.status(500).json({ message: "Failed to load Pokemon data" });
+      }
+
+      // Select and perform computer's move
       const aiMove = getAIAction(
         game,
-        playerPokemon as IPokemon,
-        computerPokemon as IPokemon
+        game.playerPokemon,
+        game.computerPokemon
       );
+
+      if (!aiMove) {
+        console.error("Failed to get AI move");
+        return res.status(500).json({ message: "Failed to get AI move" });
+      }
+
+      console.log("Selected AI move:", aiMove);
+
       const damage = calculateMoveDamage(
         aiMove,
-        computerPokemon as IPokemon,
-        playerPokemon as IPokemon
+        game.computerPokemon,
+        game.playerPokemon
       );
-      game.playerPokemonCurrentHP -= damage;
+
+      console.log("Attack details:", {
+        move: aiMove.name,
+        damage,
+        currentHP: game.playerPokemonCurrentHP,
+        newHP: game.playerPokemonCurrentHP - damage,
+      });
+
+      game.playerPokemonCurrentHP = Math.max(
+        0,
+        game.playerPokemonCurrentHP - damage
+      );
       game.battleLog.push({
         turn: 1,
         attacker: "computer",
@@ -68,18 +155,24 @@ export const startGame = async (req: StartGameRequest, res: Response) => {
       }
 
       await game.save();
+
+      // Re-populate and validate final state
+      game = await game.populate(["playerPokemon", "computerPokemon"]);
+
+      console.log("Final game state after computer's turn:", {
+        currentTurn: game.currentTurn,
+        playerHP: game.playerPokemonCurrentHP,
+        battleLog: game.battleLog,
+        status: game.status,
+        winner: game.winner,
+      });
     }
 
-    const populatedGame = await game.populate([
-      { path: "playerPokemon" },
-      { path: "computerPokemon" },
-    ]);
-
-    res.json(populatedGame);
+    res.json(game);
   } catch (error) {
-    console.error("Error creating game:", error);
+    console.error("Error starting game:", error);
     res.status(500).json({
-      message: error instanceof Error ? error.message : "Server error",
+      message: error instanceof Error ? error.message : "Error starting game",
     });
   }
 };
