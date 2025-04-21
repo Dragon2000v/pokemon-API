@@ -330,6 +330,49 @@ router.get(
  *             schema:
  *               $ref: '#/components/schemas/Game'
  */
-router.post("/:id/surrender", auth, surrender);
+router.post(
+  "/:id/surrender",
+  auth,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const game = await Game.findById(req.params.id)
+        .populate("playerPokemon")
+        .populate("computerPokemon");
+
+      if (!game) {
+        res.status(404).json({ message: "Game not found" });
+        return;
+      }
+
+      if (game.player.toString() !== req.user!._id.toString()) {
+        res
+          .status(403)
+          .json({ message: "Not authorized to perform this action" });
+        return;
+      }
+
+      if (game.status === "finished") {
+        res.status(400).json({ message: "Game is already finished" });
+        return;
+      }
+
+      game.status = "finished";
+      game.winner = "computer";
+      game.battleLog.push({
+        turn: game.battleLog.length + 1,
+        attacker: "player",
+        move: "surrender",
+        damage: 0,
+        timestamp: new Date(),
+      });
+
+      await game.save();
+      res.json(game);
+    } catch (error) {
+      console.error("Error processing surrender:", error);
+      res.status(500).json({ message: "Error processing surrender" });
+    }
+  }
+);
 
 export default router;
