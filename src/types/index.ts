@@ -40,7 +40,7 @@ export interface IBattleLogEntry {
 
 export interface IGame {
   _id: Types.ObjectId;
-  player: Types.ObjectId;
+  player: string;
   playerPokemon: Types.ObjectId | IPokemon;
   computerPokemon: Types.ObjectId | IPokemon;
   status: "active" | "finished";

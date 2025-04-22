@@ -1,5 +1,5 @@
 import { Schema, model } from "mongoose";
-import { IGame, IBattleLogEntry } from "../types";
+import { IGame, IBattleLogEntry } from "../types/index.js";
 
 const battleLogSchema = new Schema<IBattleLogEntry>({
   turn: { type: Number, required: true },
@@ -11,7 +11,7 @@ const battleLogSchema = new Schema<IBattleLogEntry>({
 
 const gameSchema = new Schema<IGame>(
   {
-    player: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    player: { type: String, required: true },
     playerPokemon: {
       type: Schema.Types.ObjectId,
       ref: "Pokemon",
