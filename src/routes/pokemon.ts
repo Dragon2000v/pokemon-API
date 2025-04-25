@@ -10,14 +10,14 @@ const router = Router();
  * @swagger
  * /api/pokemon:
  *   get:
- *     summary: Получить список всех покемонов
- *     description: Возвращает список всех доступных покемонов с их характеристиками
+ *     summary: Get all pokemons
+ *     description: Returns a list of all available pokemons with their characteristics
  *     tags: [Pokemon]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Список покемонов успешно получен
+ *         description: List of pokemons successfully retrieved
  *         content:
  *           application/json:
  *             schema:
@@ -34,7 +34,7 @@ const router = Router();
  *                 speed: 90
  *                 imageUrl: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png"
  *       401:
- *         description: Не авторизован
+ *         description: Not authorized
  *         content:
  *           application/json:
  *             schema:
@@ -42,7 +42,7 @@ const router = Router();
  *             example:
  *               message: "Authentication required"
  *       500:
- *         description: Ошибка сервера
+ *         description: Server error
  *         content:
  *           application/json:
  *             schema:
@@ -67,8 +67,8 @@ router.get(
  * @swagger
  * /api/pokemon/{id}:
  *   get:
- *     summary: Получить покемона по ID
- *     description: Возвращает детальную информацию о конкретном покемоне
+ *     summary: Get pokemon by ID
+ *     description: Returns detailed information about a specific pokemon
  *     tags: [Pokemon]
  *     security:
  *       - bearerAuth: []
@@ -76,13 +76,13 @@ router.get(
  *       - in: path
  *         name: id
  *         required: true
- *         description: MongoDB ID покемона
+ *         description: MongoDB ID of the pokemon
  *         schema:
  *           type: string
  *         example: "507f1f77bcf86cd799439011"
  *     responses:
  *       200:
- *         description: Покемон успешно найден
+ *         description: Pokemon successfully found
  *         content:
  *           application/json:
  *             schema:
@@ -97,7 +97,7 @@ router.get(
  *               speed: 90
  *               imageUrl: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png"
  *       401:
- *         description: Не авторизован
+ *         description: Not authorized
  *         content:
  *           application/json:
  *             schema:
@@ -105,7 +105,7 @@ router.get(
  *             example:
  *               message: "Authentication required"
  *       404:
- *         description: Покемон не найден
+ *         description: Pokemon not found
  *         content:
  *           application/json:
  *             schema:
@@ -113,7 +113,7 @@ router.get(
  *             example:
  *               message: "Pokemon not found"
  *       500:
- *         description: Ошибка сервера
+ *         description: Server error
  *         content:
  *           application/json:
  *             schema:
