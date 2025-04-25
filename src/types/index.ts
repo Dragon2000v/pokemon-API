@@ -1,11 +1,59 @@
 import { Request } from "express";
-import { Types } from "mongoose";
+import { Document, Types } from "mongoose";
+
+export interface IPokemon extends Document {
+  name: string;
+  type: string[];
+  hp: number;
+  attack: number;
+  defense: number;
+  speed: number;
+  imageUrl: string;
+  abilities: Array<{
+    name: string;
+    description: string;
+    power: number;
+  }>;
+}
+
+export interface IUser extends Document {
+  walletAddress: string;
+  nonce: string;
+  inventory: Types.ObjectId[];
+  statistics: {
+    gamesPlayed: number;
+    gamesWon: number;
+    gamesLost: number;
+    winRate: number;
+  };
+}
 
 export interface AuthRequest extends Request {
   user?: {
-    _id: Types.ObjectId;
     walletAddress: string;
   };
+}
+
+export interface IGame extends Document {
+  player1: {
+    address: string;
+    pokemon: Types.ObjectId;
+    currentHp: number;
+  };
+  player2: {
+    address: string;
+    pokemon: Types.ObjectId;
+    currentHp: number;
+  };
+  currentTurn: string;
+  status: "waiting" | "active" | "finished";
+  winner?: string;
+  moves: Array<{
+    player: string;
+    move: string;
+    damage: number;
+    timestamp: Date;
+  }>;
 }
 
 export interface IMove {
@@ -52,16 +100,6 @@ export interface IGame {
   battleLog: IBattleLogEntry[];
   playerPokemonCurrentHP: number;
   computerPokemonCurrentHP: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface IUser {
-  _id: Types.ObjectId;
-  walletAddress: string;
-  nonce: string;
-  pokemons?: Types.ObjectId[];
-  games?: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }

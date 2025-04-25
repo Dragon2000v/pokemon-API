@@ -7,6 +7,8 @@ import { config } from "./config/index.js";
 import { specs } from "./config/swagger.js";
 import authRouter from "./routes/auth.js";
 import pokemonRouter from "./routes/pokemon.js";
+import gameRouter from "./routes/game.js";
+import userRouter from "./routes/user.js";
 import { createServer } from "http";
 import { initSocket } from "./socket/index.js";
 
@@ -20,6 +22,8 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRouter);
 app.use("/api/pokemon", pokemonRouter);
+app.use("/api/game", gameRouter);
+app.use("/api/user", userRouter);
 
 // Swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));

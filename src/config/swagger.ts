@@ -6,7 +6,8 @@ const options = {
     info: {
       title: "Pokemon Game API",
       version: "1.0.0",
-      description: "API для игры Pokemon с Web3 аутентификацией",
+      description:
+        "Pokemon Game API with Web3 Authentication and Battle System",
       contact: {
         name: "API Support",
         email: "support@pokemongame.com",
@@ -21,15 +22,19 @@ const options = {
     tags: [
       {
         name: "Auth",
-        description: "Аутентификация через Web3 (Ethereum кошелек)",
+        description: "Authentication via Web3 (Ethereum wallet)",
       },
       {
         name: "Pokemon",
-        description: "Операции с покемонами",
+        description: "Pokemon management operations",
       },
       {
         name: "Game",
-        description: "Управление игровым процессом",
+        description: "Game process management and battles",
+      },
+      {
+        name: "User",
+        description: "User profile and statistics management",
       },
     ],
     components: {
@@ -48,45 +53,66 @@ const options = {
           properties: {
             _id: {
               type: "string",
-              description: "Уникальный идентификатор покемона",
+              description: "Unique pokemon identifier",
               example: "507f1f77bcf86cd799439011",
             },
             name: {
               type: "string",
-              description: "Имя покемона",
+              description: "Pokemon name",
               example: "Pikachu",
             },
             type: {
               type: "array",
               items: { type: "string" },
-              description: "Типы покемона",
+              description: "Pokemon types",
               example: ["Electric"],
             },
             hp: {
               type: "number",
-              description: "Очки здоровья",
+              description: "Health points",
               example: 100,
             },
             attack: {
               type: "number",
-              description: "Сила атаки",
+              description: "Attack power",
               example: 55,
             },
             defense: {
               type: "number",
-              description: "Защита",
+              description: "Defense points",
               example: 40,
             },
             speed: {
               type: "number",
-              description: "Скорость",
+              description: "Speed points",
               example: 90,
             },
             imageUrl: {
               type: "string",
-              description: "URL изображения покемона",
+              description: "Pokemon image URL",
               example:
                 "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
+            },
+            abilities: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: {
+                    type: "string",
+                    description: "Ability name",
+                  },
+                  description: {
+                    type: "string",
+                    description: "Ability description",
+                  },
+                  power: {
+                    type: "number",
+                    description: "Ability power",
+                  },
+                },
+              },
+              description: "Pokemon abilities",
             },
           },
         },
@@ -96,16 +122,16 @@ const options = {
           properties: {
             _id: {
               type: "string",
-              description: "Уникальный идентификатор игры",
+              description: "Unique game identifier",
               example: "507f1f77bcf86cd799439011",
             },
             player1: {
               type: "object",
-              description: "Данные первого игрока",
+              description: "First player data",
               properties: {
                 address: {
                   type: "string",
-                  description: "Ethereum адрес игрока",
+                  description: "Player's Ethereum address",
                   example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
                 },
                 pokemon: {
@@ -113,18 +139,18 @@ const options = {
                 },
                 currentHp: {
                   type: "number",
-                  description: "Текущее здоровье покемона",
+                  description: "Current pokemon HP",
                   example: 100,
                 },
               },
             },
             player2: {
               type: "object",
-              description: "Данные второго игрока (CPU)",
+              description: "Second player data",
               properties: {
                 address: {
                   type: "string",
-                  description: "Идентификатор CPU",
+                  description: "Player's Ethereum address or CPU identifier",
                   example: "CPU",
                 },
                 pokemon: {
@@ -132,27 +158,99 @@ const options = {
                 },
                 currentHp: {
                   type: "number",
-                  description: "Текущее здоровье покемона CPU",
+                  description: "Current pokemon HP",
                   example: 100,
                 },
               },
             },
             currentTurn: {
               type: "string",
-              description: "Адрес игрока, чей сейчас ход",
+              description: "Current player's turn (Ethereum address)",
               example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
             },
             status: {
               type: "string",
-              enum: ["active", "finished"],
-              description: "Статус игры",
+              enum: ["waiting", "active", "finished"],
+              description: "Game status",
               example: "active",
             },
             winner: {
               type: "string",
               nullable: true,
-              description: "Адрес победителя (если игра завершена)",
+              description: "Winner's address (if game is finished)",
               example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+            },
+            moves: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  player: {
+                    type: "string",
+                    description: "Player's address",
+                  },
+                  move: {
+                    type: "string",
+                    description: "Move name",
+                  },
+                  damage: {
+                    type: "number",
+                    description: "Damage dealt",
+                  },
+                  timestamp: {
+                    type: "string",
+                    format: "date-time",
+                    description: "Move timestamp",
+                  },
+                },
+              },
+              description: "Game move history",
+            },
+          },
+        },
+        User: {
+          type: "object",
+          required: ["walletAddress"],
+          properties: {
+            _id: {
+              type: "string",
+              description: "Unique user identifier",
+            },
+            walletAddress: {
+              type: "string",
+              description: "User's Ethereum wallet address",
+            },
+            nonce: {
+              type: "string",
+              description: "Authentication nonce",
+            },
+            statistics: {
+              type: "object",
+              properties: {
+                gamesPlayed: {
+                  type: "number",
+                  description: "Total games played",
+                },
+                gamesWon: {
+                  type: "number",
+                  description: "Total games won",
+                },
+                gamesLost: {
+                  type: "number",
+                  description: "Total games lost",
+                },
+                winRate: {
+                  type: "number",
+                  description: "Win rate percentage",
+                },
+              },
+            },
+            inventory: {
+              type: "array",
+              items: {
+                $ref: "#/components/schemas/Pokemon",
+              },
+              description: "User's pokemon collection",
             },
           },
         },
@@ -161,7 +259,7 @@ const options = {
           properties: {
             message: {
               type: "string",
-              description: "Описание ошибки",
+              description: "Error description",
             },
           },
         },
@@ -171,7 +269,7 @@ const options = {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
-          description: "JWT токен, полученный после верификации подписи",
+          description: "JWT token obtained after signature verification",
         },
       },
     },
