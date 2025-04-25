@@ -18,7 +18,7 @@ const statsSchema = new Schema<IStats>({
 const pokemonSchema = new Schema<IPokemon>({
   id: { type: Number, required: true, unique: true },
   name: { type: String, required: true },
-  types: [{ type: String, required: true }],
+  type: [{ type: String, required: true }],
   level: { type: Number, required: true },
   moves: {
     type: [moveSchema],
@@ -45,11 +45,12 @@ const pokemonSchema = new Schema<IPokemon>({
 
 // Add middleware to validate Pokemon data before saving
 pokemonSchema.pre("save", function (next) {
-  if (!this.moves || this.moves.length === 0) {
+  const pokemon = this as IPokemon;
+  if (!pokemon.moves || pokemon.moves.length === 0) {
     next(new Error("Pokemon must have at least one move"));
     return;
   }
-  if (!this.stats || !this.stats.speed || !this.stats.hp) {
+  if (!pokemon.stats || !pokemon.stats.speed || !pokemon.stats.hp) {
     next(new Error("Pokemon must have valid stats"));
     return;
   }

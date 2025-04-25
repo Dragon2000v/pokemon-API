@@ -71,15 +71,15 @@ router.post("/create", auth, async (req: AuthRequest, res: Response) => {
       player1: {
         address: req.user.walletAddress,
         pokemon: new Types.ObjectId(pokemonId),
-        currentHp: pokemon.hp,
+        currentHp: pokemon.stats.hp,
       },
       player2: {
         address: mode === "pve" ? "CPU" : "",
         pokemon: mode === "pve" ? cpuPokemon?._id : null,
-        currentHp: mode === "pve" ? cpuPokemon?.hp : 0,
+        currentHp: mode === "pve" ? cpuPokemon?.stats.hp : 0,
       },
       status: mode === "pve" ? "active" : "waiting",
-      currentTurn: req.user.walletAddress,
+      currentTurn: mode === "pve" ? "computer" : "player",
       moves: [],
     }) as IGame;
 
@@ -165,9 +165,7 @@ router.post("/:id/move", auth, async (req: AuthRequest, res: Response) => {
 
     // Switch turns
     game.currentTurn =
-      game.player1.address === req.user.walletAddress
-        ? game.player2.address
-        : game.player1.address;
+      game.player1.address === req.user.walletAddress ? "computer" : "player";
 
     await game.save();
     res.json(game);
