@@ -1,5 +1,12 @@
 import { Schema, model } from "mongoose";
-import { IPokemon } from "../types/index.js";
+import { IPokemon, IMove } from "../types/index.js";
+
+const moveSchema = new Schema<IMove>({
+  name: { type: String, required: true },
+  type: { type: String, required: true },
+  power: { type: Number, required: true },
+  accuracy: { type: Number, required: true },
+});
 
 const pokemonSchema = new Schema<IPokemon>({
   id: {
@@ -39,9 +46,19 @@ const pokemonSchema = new Schema<IPokemon>({
     type: Number,
     default: 50,
   },
-  image: {
+  imageUrl: {
     type: String,
     required: true,
+  },
+  moves: {
+    type: [moveSchema],
+    required: true,
+    validate: {
+      validator: function (moves: IMove[]) {
+        return Array.isArray(moves) && moves.length > 0;
+      },
+      message: "Pokemon must have at least one move",
+    },
   },
 });
 

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { Web3 } from "web3";
+import Web3 from "web3";
 import User from "../schemas/user.js";
 import crypto from "crypto";
 
@@ -39,11 +39,9 @@ export const getNonce = async (req: NonceRequest, res: Response) => {
 
     res.json({ nonce });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: error instanceof Error ? error.message : "Server error",
-      });
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };
 
@@ -75,10 +73,8 @@ export const verifySignature = async (req: VerifyRequest, res: Response) => {
 
     res.json({ token });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: error instanceof Error ? error.message : "Server error",
-      });
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };

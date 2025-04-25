@@ -24,10 +24,13 @@ export interface IStats {
 
 export interface IPokemon {
   _id: Types.ObjectId;
+  id: number;
   name: string;
-  type: string;
+  types: string[];
   stats: IStats;
   moves: IMove[];
+  level: number;
+  imageUrl: string;
 }
 
 export interface IBattleLogEntry {

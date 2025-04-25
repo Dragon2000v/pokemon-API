@@ -7,11 +7,9 @@ export const getAllPokemons = async (_req: Request, res: Response) => {
     const pokemons = await Pokemon.find();
     res.json(pokemons);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: error instanceof Error ? error.message : "Server error",
-      });
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };
 
@@ -54,7 +52,15 @@ export const initializePokemons = async () => {
           speed: pokemon.base.Speed,
         },
         level: 50,
-        image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`,
+        imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`,
+        moves: [
+          {
+            name: "Tackle",
+            type: pokemon.type[0],
+            power: 40,
+            accuracy: 100,
+          },
+        ],
       }));
 
     await Pokemon.insertMany(initialPokemons);

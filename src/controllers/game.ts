@@ -110,8 +110,8 @@ export const startGame = async (req: StartGameRequest, res: Response) => {
       // Select and perform computer's move
       const aiMove = getAIAction(
         game,
-        game.playerPokemon,
-        game.computerPokemon
+        game.playerPokemon as IPokemon,
+        game.computerPokemon as IPokemon
       );
 
       if (!aiMove) {
@@ -123,8 +123,8 @@ export const startGame = async (req: StartGameRequest, res: Response) => {
 
       const damage = calculateMoveDamage(
         aiMove,
-        game.computerPokemon,
-        game.playerPokemon
+        game.computerPokemon as IPokemon,
+        game.playerPokemon as IPokemon
       );
 
       console.log("Attack details:", {
