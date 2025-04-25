@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import Pokemon from "../schemas/pokemon.js";
-import { IPokemon } from "../types/index.js";
 
 export const getAllPokemons = async (_req: Request, res: Response) => {
   try {
@@ -39,29 +38,27 @@ export const initializePokemons = async () => {
     );
     const pokemonData: PokemonData[] = await response.json();
 
-    const initialPokemons: Omit<IPokemon, "_id">[] = pokemonData
-      .slice(0, 20)
-      .map((pokemon) => ({
-        id: pokemon.id,
-        name: pokemon.name.english,
-        types: pokemon.type,
-        stats: {
-          hp: pokemon.base.HP,
-          attack: pokemon.base.Attack,
-          defense: pokemon.base.Defense,
-          speed: pokemon.base.Speed,
+    const initialPokemons = pokemonData.slice(0, 20).map((pokemon) => ({
+      id: pokemon.id,
+      name: pokemon.name.english,
+      types: pokemon.type,
+      stats: {
+        hp: pokemon.base.HP,
+        attack: pokemon.base.Attack,
+        defense: pokemon.base.Defense,
+        speed: pokemon.base.Speed,
+      },
+      level: 50,
+      imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`,
+      moves: [
+        {
+          name: "Tackle",
+          type: pokemon.type[0],
+          power: 40,
+          accuracy: 100,
         },
-        level: 50,
-        imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`,
-        moves: [
-          {
-            name: "Tackle",
-            type: pokemon.type[0],
-            power: 40,
-            accuracy: 100,
-          },
-        ],
-      }));
+      ],
+    }));
 
     await Pokemon.insertMany(initialPokemons);
     console.log("Pokemons initialized successfully");

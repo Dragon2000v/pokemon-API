@@ -18,7 +18,7 @@ const statsSchema = new Schema<IStats>({
 const pokemonSchema = new Schema<IPokemon>({
   id: { type: Number, required: true, unique: true },
   name: { type: String, required: true },
-  type: [{ type: String, required: true }],
+  types: [{ type: String, required: true }],
   level: { type: Number, required: true },
   moves: {
     type: [moveSchema],

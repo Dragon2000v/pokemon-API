@@ -18,7 +18,7 @@ export interface IStats {
 export interface IPokemon extends Document {
   id: number;
   name: string;
-  type: string[];
+  types: string[];
   level: number;
   moves: IMove[];
   stats: IStats;

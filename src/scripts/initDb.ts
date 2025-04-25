@@ -4,8 +4,9 @@ import { Pokemon } from "../models/Pokemon.js";
 
 const initialPokemons = [
   {
+    id: 25,
     name: "Pikachu",
-    type: "Electric",
+    types: ["Electric"],
     level: 50,
     stats: {
       hp: 100,
@@ -23,8 +24,9 @@ const initialPokemons = [
     ],
   },
   {
+    id: 6,
     name: "Charizard",
-    type: "Fire",
+    types: ["Fire", "Flying"],
     level: 50,
     stats: {
       hp: 100,
@@ -42,8 +44,9 @@ const initialPokemons = [
     ],
   },
   {
+    id: 9,
     name: "Blastoise",
-    type: "Water",
+    types: ["Water"],
     level: 50,
     stats: {
       hp: 100,
@@ -61,8 +64,9 @@ const initialPokemons = [
     ],
   },
   {
+    id: 3,
     name: "Venusaur",
-    type: "Grass",
+    types: ["Grass", "Poison"],
     level: 50,
     stats: {
       hp: 100,

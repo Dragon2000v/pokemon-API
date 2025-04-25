@@ -1,13 +1,5 @@
 import { IPokemon, IMove } from "../types";
 
-// Type effectiveness chart
-const typeChart: Record<string, Record<string, number>> = {
-  fire: { water: 0.5, grass: 2, electric: 1 },
-  water: { fire: 2, grass: 0.5, electric: 0.5 },
-  grass: { fire: 0.5, water: 2, electric: 1 },
-  electric: { fire: 1, water: 2, grass: 0.5 },
-};
-
 // Calculate damage for a specific move
 export const calculateMoveDamage = (
   move: IMove,
@@ -24,16 +16,6 @@ export const calculateMoveDamage = (
   return Math.max(1, Math.floor(damageAfterDefense));
 };
 
-// Get type effectiveness multiplier
-const getTypeMultiplier = (
-  attackType: string,
-  defenseTypes: string[]
-): number => {
-  return defenseTypes.reduce((multiplier, type) => {
-    return multiplier * (typeChart[attackType]?.[type] || 1);
-  }, 1);
-};
-
 // Get the best move based on damage calculation
 export const getBestMove = (attacker: IPokemon, defender: IPokemon): IMove => {
   return attacker.moves.reduce((best, current) => {
@@ -41,21 +23,6 @@ export const getBestMove = (attacker: IPokemon, defender: IPokemon): IMove => {
     const bestDamage = calculateMoveDamage(best, attacker, defender);
     return currentDamage > bestDamage ? current : best;
   });
-};
-
-// Get a defensive move if available
-const getDefensiveMove = (pokemon: IPokemon): IMove => {
-  const defensiveMoves = pokemon.moves.filter(
-    (move) =>
-      move.name.toLowerCase().includes("defense") ||
-      move.name.toLowerCase().includes("shield")
-  );
-  return defensiveMoves.length > 0 ? defensiveMoves[0] : getRandomMove(pokemon);
-};
-
-// Get a random move
-const getRandomMove = (pokemon: IPokemon): IMove => {
-  return pokemon.moves[Math.floor(Math.random() * pokemon.moves.length)];
 };
 
 // Main AI decision making function
@@ -80,7 +47,7 @@ export const getAIAction = (
     // Return default move
     return {
       name: "Tackle",
-      type: aiPokemon.type || "normal",
+      type: aiPokemon.types[0] || "normal",
       power: 40,
       accuracy: 100,
     };
