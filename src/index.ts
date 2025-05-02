@@ -11,7 +11,7 @@ import gameRouter from "./routes/game.js";
 import userRouter from "./routes/user.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { setupSocket } from "./socket";
+import { setupSocket } from "./socket/index.js";
 
 const app = express();
 const httpServer = createServer(app);

@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
-import { setupGameSocket } from "./game";
+import { setupGameSocket } from "./game.js";
 import jwt from "jsonwebtoken";
-import { config } from "../config";
+import { config } from "../config/index.js";
 
 export const setupSocket = (io: Server) => {
   // Добавляем middleware для аутентификации
