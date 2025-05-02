@@ -7,7 +7,7 @@
   "author": "Vitaly Shmatko <shmatko064@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "build": "tsc --outDir dist || true",
+    "build": "tsc --outDir dist --allowJs || true",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint . --ext .ts",

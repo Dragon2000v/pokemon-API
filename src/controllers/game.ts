@@ -3,7 +3,7 @@ import { AuthRequest, IPokemon } from "../types/index.js";
 import { Game } from "../models/Game.js";
 import { Pokemon } from "../models/Pokemon.js";
 import { calculateMoveDamage, getAIAction } from "../helpers/ai.js";
-import { IGame } from "../types/game";
+import { IGame } from "../types/game.js";
 
 interface StartGameRequest extends AuthRequest {
   body: {

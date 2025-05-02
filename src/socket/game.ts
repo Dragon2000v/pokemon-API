@@ -1,8 +1,8 @@
 import { Server, Socket } from "socket.io";
-import { Game } from "../models/Game";
-import { Pokemon } from "../models/Pokemon";
-import { IBattleLogEntry } from "../types/game";
-import { calculateMoveDamage, getAIAction } from "../helpers/ai";
+import { Game } from "../models/Game.js";
+import { Pokemon } from "../models/Pokemon.js";
+import { IBattleLogEntry } from "../types/game.js";
+import { calculateMoveDamage, getAIAction } from "../helpers/ai.js";
 
 const GAME_TIMEOUT = 300000; // 5 minutes in milliseconds
 

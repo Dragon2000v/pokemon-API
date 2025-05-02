@@ -3,9 +3,10 @@ import { Response } from "express";
 import { Game } from "../models/Game.js";
 import { Pokemon } from "../models/Pokemon.js";
 import { auth } from "../middlewares/auth.js";
-import { AuthRequest } from "../types/auth";
+import { AuthRequest } from "../types/auth.js";
 import { Types } from "mongoose";
-import { createGame, getGame, makeMove } from "../controllers/game";
+import { createGame, getGame, makeMove } from "../controllers/game.js";
+import { IGame } from "../types/game.js";
 
 const router = Router();
 

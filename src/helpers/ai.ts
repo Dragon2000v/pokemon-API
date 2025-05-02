@@ -1,4 +1,4 @@
-import { IPokemon, IMove } from "../types";
+import { IPokemon, IMove } from "../types/index.js";
 
 // Calculate damage for a specific move
 export const calculateMoveDamage = (
