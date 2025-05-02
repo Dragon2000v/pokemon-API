@@ -3,8 +3,9 @@ import { Response } from "express";
 import { Game } from "../models/Game.js";
 import { Pokemon } from "../models/Pokemon.js";
 import { auth } from "../middlewares/auth.js";
-import { AuthRequest, IPokemon, IGame } from "../types/index.js";
+import { AuthRequest } from "../types/auth";
 import { Types } from "mongoose";
+import { createGame, getGame, makeMove } from "../controllers/game";
 
 const router = Router();
 
@@ -45,28 +46,19 @@ const router = Router();
  */
 router.post("/create", auth, async (req: AuthRequest, res: Response) => {
   try {
-    if (!req.user?.walletAddress) {
+    if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const { pokemonId, mode } = req.body;
+    const { pokemonId } = req.body;
 
-    if (!pokemonId || !mode) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-
-    const pokemon = (await Pokemon.findById(pokemonId)) as IPokemon | null;
+    // Находим покемона игрока
+    const pokemon = await Pokemon.findById(pokemonId);
     if (!pokemon) {
       return res.status(404).json({ message: "Pokemon not found" });
     }
 
-    // Create CPU pokemon for PvE mode
-    const cpuPokemon =
-      mode === "pve" ? ((await Pokemon.findOne()) as IPokemon | null) : null;
-    if (mode === "pve" && !cpuPokemon) {
-      return res.status(500).json({ message: "No CPU pokemon available" });
-    }
-
+    // Создаем игру
     const game = new Game({
       player1: {
         address: req.user.walletAddress,
@@ -74,20 +66,18 @@ router.post("/create", auth, async (req: AuthRequest, res: Response) => {
         currentHp: pokemon.stats.hp,
       },
       player2: {
-        address: mode === "pve" ? "CPU" : "",
-        pokemon: mode === "pve" ? cpuPokemon?._id : null,
-        currentHp: mode === "pve" ? cpuPokemon?.stats.hp : 0,
+        address: "CPU",
+        pokemon: null,
+        currentHp: 0,
       },
-      status: mode === "pve" ? "active" : "waiting",
-      currentTurn: mode === "pve" ? "computer" : "player",
-      moves: [],
-    }) as IGame;
+      status: "pending",
+    });
 
     await game.save();
     res.status(201).json(game);
   } catch (error) {
     console.error("Error creating game:", error);
-    res.status(500).json({ message: "Error creating game" });
+    res.status(500).json({ message: "Failed to create game" });
   }
 });
 
@@ -134,46 +124,7 @@ router.post("/create", auth, async (req: AuthRequest, res: Response) => {
  *       400:
  *         description: Invalid move
  */
-router.post("/:id/move", auth, async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.user?.walletAddress) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const { moveType, moveId } = req.body;
-    if (!moveType || !moveId) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-
-    const game = (await Game.findById(req.params.id)) as IGame | null;
-    if (!game) {
-      return res.status(404).json({ message: "Game not found" });
-    }
-
-    if (game.currentTurn !== req.user.walletAddress) {
-      return res.status(400).json({ message: "Not your turn" });
-    }
-
-    // Implement move logic here
-    // This is a placeholder for move execution
-    game.moves.push({
-      player: req.user.walletAddress,
-      move: moveId,
-      damage: 10,
-      timestamp: new Date(),
-    });
-
-    // Switch turns
-    game.currentTurn =
-      game.player1.address === req.user.walletAddress ? "computer" : "player";
-
-    await game.save();
-    res.json(game);
-  } catch (error) {
-    console.error("Error executing move:", error);
-    res.status(500).json({ message: "Error executing move" });
-  }
-});
+router.post("/:id/move", auth, makeMove);
 
 /**
  * @swagger
@@ -203,22 +154,7 @@ router.post("/:id/move", auth, async (req: AuthRequest, res: Response) => {
  *       404:
  *         description: Game not found
  */
-router.get("/:id", auth, async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.user?.walletAddress) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const game = (await Game.findById(req.params.id)) as IGame | null;
-    if (!game) {
-      return res.status(404).json({ message: "Game not found" });
-    }
-    res.json(game);
-  } catch (error) {
-    console.error("Error fetching game:", error);
-    res.status(500).json({ message: "Error fetching game" });
-  }
-});
+router.get("/:id", auth, getGame);
 
 /**
  * @swagger
@@ -260,5 +196,7 @@ router.get("/active", auth, async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: "Error fetching active games" });
   }
 });
+
+router.post("/", auth, createGame);
 
 export default router;

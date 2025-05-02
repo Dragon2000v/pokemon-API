@@ -10,12 +10,22 @@ import pokemonRouter from "./routes/pokemon.js";
 import gameRouter from "./routes/game.js";
 import userRouter from "./routes/user.js";
 import { createServer } from "http";
-import { initSocket } from "./socket/index.js";
+import { Server } from "socket.io";
+import { setupSocket } from "./socket";
 
 const app = express();
+const httpServer = createServer(app);
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["*"],
+    exposedHeaders: ["*"],
+  })
+);
 app.use(morgan("dev"));
 app.use(express.json());
 
@@ -33,27 +43,32 @@ app.get("/health", (_, res) => {
   res.json({ status: "ok" });
 });
 
+// Socket.io
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+setupSocket(io);
+
 // Connect to MongoDB
 console.log("Attempting to connect to MongoDB...");
 console.log("MongoDB URI:", config.mongodb.uri);
 
 mongoose
-  .connect(config.mongodb.uri, {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  })
+  .connect(config.mongodb.uri)
   .then(() => {
     console.log("Connected to MongoDB successfully");
 
-    // Create HTTP server and initialize WebSocket
-    const httpServer = createServer(app);
-    initSocket(httpServer);
-
     // Start server
-    httpServer.listen(config.port, () => {
-      console.log(`Server is running on port ${config.port}`);
+    const PORT = process.env.PORT || 3001;
+    httpServer.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
       console.log(
-        `API Documentation available at http://localhost:${config.port}/api-docs`
+        `API Documentation available at http://localhost:${PORT}/api-docs`
       );
     });
   })

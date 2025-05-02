@@ -18,6 +18,7 @@ export const auth = async (
 
     const decoded = jwt.verify(token, config.jwt.secret) as {
       walletAddress: string;
+      _id: string;
     };
 
     const user = await User.findOne({ walletAddress: decoded.walletAddress });
@@ -26,7 +27,7 @@ export const auth = async (
     }
 
     req.user = {
-      _id: user._id,
+      _id: decoded._id,
       walletAddress: decoded.walletAddress,
     };
 

@@ -1,17 +1,44 @@
-import { Schema, model } from "mongoose";
-import { IGame, IBattleLogEntry } from "../types/index.js";
+import mongoose, { Schema } from "mongoose";
+import { IGame } from "../types/game";
 
-const battleLogSchema = new Schema<IBattleLogEntry>({
-  turn: { type: Number, required: true },
-  attacker: { type: String, enum: ["player", "computer"], required: true },
-  move: { type: String, required: true },
-  damage: { type: Number, required: true },
-  timestamp: { type: Date, default: Date.now },
-});
-
-const gameSchema = new Schema<IGame>(
+const GameSchema = new Schema<IGame>(
   {
-    player: { type: String, required: true },
+    player1: {
+      address: { type: String, required: true },
+      pokemon: { type: Schema.Types.ObjectId, ref: "Pokemon", required: true },
+      currentHp: { type: Number, required: true },
+    },
+    player2: {
+      address: { type: String, required: true },
+      pokemon: { type: Schema.Types.ObjectId, ref: "Pokemon" },
+      currentHp: { type: Number },
+    },
+    status: {
+      type: String,
+      enum: ["pending", "active", "finished"],
+      default: "pending",
+    },
+    winner: {
+      type: String,
+      enum: ["player", "computer"],
+    },
+    currentTurn: {
+      type: String,
+      enum: ["player", "computer"],
+    },
+    battleLog: [
+      {
+        turn: { type: Number, required: true },
+        attacker: {
+          type: String,
+          enum: ["player", "computer"],
+          required: true,
+        },
+        move: { type: String, required: true },
+        damage: { type: Number, required: true },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
     playerPokemon: {
       type: Schema.Types.ObjectId,
       ref: "Pokemon",
@@ -22,14 +49,6 @@ const gameSchema = new Schema<IGame>(
       ref: "Pokemon",
       required: true,
     },
-    status: { type: String, enum: ["active", "finished"], default: "active" },
-    winner: { type: String, enum: ["player", "computer"] },
-    currentTurn: {
-      type: String,
-      enum: ["player", "computer"],
-      default: "player",
-    },
-    battleLog: [battleLogSchema],
     playerPokemonCurrentHP: { type: Number, required: true },
     computerPokemonCurrentHP: { type: Number, required: true },
   },
@@ -38,4 +57,4 @@ const gameSchema = new Schema<IGame>(
   }
 );
 
-export const Game = model<IGame>("Game", gameSchema);
+export const Game = mongoose.model<IGame>("Game", GameSchema);

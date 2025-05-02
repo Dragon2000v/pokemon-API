@@ -1,8 +1,9 @@
-import { Response } from "express";
+import { Request, Response } from "express";
 import { AuthRequest, IPokemon } from "../types/index.js";
 import { Game } from "../models/Game.js";
 import { Pokemon } from "../models/Pokemon.js";
 import { calculateMoveDamage, getAIAction } from "../helpers/ai.js";
+import { IGame } from "../types/game";
 
 interface StartGameRequest extends AuthRequest {
   body: {
@@ -343,5 +344,155 @@ export const surrender = async (req: AuthRequest, res: Response) => {
     res.status(500).json({
       message: error instanceof Error ? error.message : "Server error",
     });
+  }
+};
+
+export const createGame = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { pokemonId } = req.body;
+
+    // Находим покемона игрока
+    const playerPokemon = await Pokemon.findById(pokemonId);
+    if (!playerPokemon) {
+      return res.status(404).json({ error: "Pokemon not found" });
+    }
+
+    // Находим случайного покемона для CPU
+    const allPokemons = await Pokemon.find({ _id: { $ne: pokemonId } });
+    if (!allPokemons.length) {
+      return res.status(404).json({ error: "No opponent pokemons found" });
+    }
+    const cpuPokemon =
+      allPokemons[Math.floor(Math.random() * allPokemons.length)];
+
+    // Определяем кто ходит первым на основе скорости
+    const playerSpeed = playerPokemon.stats.speed;
+    const cpuSpeed = cpuPokemon.stats.speed;
+    const firstTurn = playerSpeed >= cpuSpeed ? "player" : "computer";
+
+    // Создаем игру
+    const game = new Game({
+      player1: {
+        address: req.user.walletAddress,
+        pokemon: playerPokemon._id,
+        currentHp: playerPokemon.stats.hp,
+      },
+      player2: {
+        address: "CPU",
+        pokemon: cpuPokemon._id,
+        currentHp: cpuPokemon.stats.hp,
+      },
+      status: "active",
+      currentTurn: firstTurn,
+      battleLog: [],
+      playerPokemon: playerPokemon._id,
+      computerPokemon: cpuPokemon._id,
+      playerPokemonCurrentHP: playerPokemon.stats.hp,
+      computerPokemonCurrentHP: cpuPokemon.stats.hp,
+    });
+
+    await game.save();
+
+    // Получаем полные данные покемонов
+    const populatedGame = await game.populate([
+      { path: "player1.pokemon" },
+      { path: "player2.pokemon" },
+      { path: "playerPokemon" },
+      { path: "computerPokemon" },
+    ]);
+
+    // Если компьютер ходит первым, делаем его ход
+    if (firstTurn === "computer") {
+      const aiMove = getAIAction(populatedGame, playerPokemon, cpuPokemon);
+
+      const damage = calculateMoveDamage(aiMove, cpuPokemon, playerPokemon);
+
+      populatedGame.playerPokemonCurrentHP = Math.max(
+        0,
+        populatedGame.playerPokemonCurrentHP - damage
+      );
+
+      populatedGame.battleLog.push({
+        turn: 1,
+        attacker: "computer",
+        move: aiMove.name,
+        damage,
+        timestamp: new Date(),
+      });
+
+      if (populatedGame.playerPokemonCurrentHP <= 0) {
+        populatedGame.status = "finished";
+        populatedGame.winner = "computer";
+      } else {
+        populatedGame.currentTurn = "player";
+      }
+
+      await populatedGame.save();
+    }
+
+    // Отправляем обновленное состояние через сокет
+    if (req.app.get("io")) {
+      req.app
+        .get("io")
+        .to(populatedGame._id.toString())
+        .emit("game:created", populatedGame);
+    }
+
+    res.status(201).json(populatedGame);
+  } catch (error) {
+    console.error("Error creating game:", error);
+    res.status(500).json({ error: "Failed to create game" });
+  }
+};
+
+export const getGame = async (req: Request, res: Response) => {
+  try {
+    const game = await Game.findById(req.params.id)
+      .populate("player1.pokemon")
+      .populate("player2.pokemon");
+
+    if (!game) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    res.json(game);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get game" });
+  }
+};
+
+export const makeMove = async (req: Request, res: Response) => {
+  try {
+    const { player, move, damage } = req.body;
+    const game = await Game.findById(req.params.id);
+
+    if (!game) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    if (game.status !== "active") {
+      return res.status(400).json({ error: "Game is not active" });
+    }
+
+    const targetPlayer =
+      player === game.player1.address ? "player1" : "player2";
+    const opponentPlayer = targetPlayer === "player1" ? "player2" : "player1";
+
+    game[opponentPlayer].currentHp -= damage;
+    game.moves.push({ player, move, damage, timestamp: new Date() });
+
+    if (game[opponentPlayer].currentHp <= 0) {
+      game.status = "finished";
+      game.winner = game[targetPlayer].address;
+    }
+
+    await game.save();
+    res.json(game);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to make move" });
   }
 };
